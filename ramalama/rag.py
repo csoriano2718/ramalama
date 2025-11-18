@@ -179,13 +179,19 @@ class RagTransport(OCI):
         return pid
 
     def serve(self, args, cmd: list[str]):
+        print(f"DEBUG RagTransport.serve: cmd={cmd}")
         pid = self._start_model(args.model_args, cmd)
         if pid:
             super().serve(args, cmd)
 
     def run(self, args, cmd: list[str]):
+        print(f"DEBUG RagTransport.run: cmd={cmd}")
         args.model_args.name = self.imodel.get_container_name(args.model_args)
-        super().run(args, cmd)
+        # For run --rag, we need to start the model server first, then start RAG proxy
+        pid = self._start_model(args.model_args, self.model_cmd)
+        if pid:
+            # The inference spec "run --rag" command will invoke rag_framework
+            super().run(args, cmd)
 
     def wait_for_healthy(self, args):
         self.imodel.wait_for_healthy(args.model_args)

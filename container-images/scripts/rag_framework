@@ -31,6 +31,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 EMBED_MODEL = os.getenv("EMBED_MODEL", "jinaai/jina-embeddings-v2-small-en")
 SPARSE_MODEL = os.getenv("SPARSE_MODEL", "prithivida/Splade_PP_en_v1")
 RANK_MODEL = os.getenv("RANK_MODEL", "Xenova/ms-marco-MiniLM-L-6-v2")
+RAG_MODE = os.getenv("RAG_MODE", "strict")  # strict, augment, hybrid
 COLLECTION_NAME = "rag"
 # Needed for mac to not give errors
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -248,13 +249,24 @@ class OpenAICompatibleRagService:
         rag_context = await self._perform_rag_lookup(latest_message.content)
         conversation_history = self._extract_conversation_context(messages[:-1])
 
+        # Determine instruction based on RAG_MODE
+        if RAG_MODE == "strict":
+            mode_instruction = "If the answer is not in the context, respond with \"I don't know\" - do not fabricate details."
+        elif RAG_MODE == "augment":
+            mode_instruction = "Use the provided context when relevant. You may also draw from your general knowledge to supplement your answer or when the context doesn't contain the information."
+        elif RAG_MODE == "hybrid":
+            mode_instruction = "Prioritize information from the provided context, but you may supplement with your general knowledge if the context is incomplete. Clearly indicate when you're using general knowledge."
+        else:
+            # Default to strict mode for unknown values
+            mode_instruction = "If the answer is not in the context, respond with \"I don't know\" - do not fabricate details."
+
         # Enhanced system prompt with RAG context
         system_prompt = (
             textwrap.dedent(
                 """
             You are an expert software architect assistant.
             Use the provided context and conversation history to answer questions accurately and concisely.
-            If the answer is not in the context, respond with "I don't know" - do not fabricate details.
+            {3}
 
             ### Conversation History:
             {0}
@@ -269,7 +281,7 @@ class OpenAICompatibleRagService:
             """
             )
             .strip()
-            .format(conversation_history, rag_context, latest_message.content)
+            .format(conversation_history, rag_context, latest_message.content, mode_instruction)
         )
 
         return [{"role": "user", "content": system_prompt}]

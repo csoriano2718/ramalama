@@ -23,6 +23,7 @@ class CommandFactory:
         self.schema_files = schema_files
 
     def create(self, runtime: str, command: str, ctx: context.RamalamaCommandContext) -> list[str]:
+        print(f"DEBUG: CommandFactory.create called with runtime='{runtime}', command='{command}'")
         spec_file = self.spec_files.get(runtime, None)
         if spec_file is None:
             raise FileNotFoundError(f"No specification file found for runtime '{runtime}' ")
