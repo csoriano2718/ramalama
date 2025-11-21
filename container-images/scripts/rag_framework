@@ -82,6 +82,7 @@ class ChatCompletionResponse(BaseModel):
 class Delta(BaseModel):
     role: str | None = None
     content: str | None = None
+    reasoning_content: str | None = None
 
 
 class StreamChoice(BaseModel):
@@ -349,16 +350,22 @@ class OpenAICompatibleRagService:
             )
 
             async for chunk in response:
-                if chunk.choices and chunk.choices[0].delta.content:
-                    content = chunk.choices[0].delta.content
+                if chunk.choices and chunk.choices[0].delta:
+                    delta = chunk.choices[0].delta
+                    content = delta.content
+                    # Use getattr to safely get reasoning_content (may not exist in all models/versions)
+                    reasoning_content = getattr(delta, 'reasoning_content', None)
+                    
+                    # Only send chunk if there's actual content or reasoning
+                    if content or reasoning_content:
 
-                    stream_chunk = ChatCompletionStreamResponse(
-                        id=completion_id,
-                        created=created,
-                        model=request.model,
-                        choices=[StreamChoice(index=0, delta=Delta(content=content), finish_reason=None)],
-                    )
-                    yield f"data: {stream_chunk.model_dump_json()}\n\n"
+                        stream_chunk = ChatCompletionStreamResponse(
+                            id=completion_id,
+                            created=created,
+                            model=request.model,
+                            choices=[StreamChoice(index=0, delta=Delta(content=content, reasoning_content=reasoning_content), finish_reason=None)],
+                        )
+                        yield f"data: {stream_chunk.model_dump_json()}\n\n"
 
                 # Handle finish reason
                 if chunk.choices and chunk.choices[0].finish_reason:
