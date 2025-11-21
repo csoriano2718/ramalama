@@ -80,6 +80,7 @@ class RamalamaRagArgsContext:
         self.port: str | None = None
         self.model_host: str | None = None
         self.model_port: str | None = None
+        self.thinking: bool | None = None
 
     @staticmethod
     def from_argparse(args: argparse.Namespace) -> "RamalamaRagArgsContext":
@@ -88,6 +89,7 @@ class RamalamaRagArgsContext:
         ctx.port = getattr(args, "port", None)
         ctx.model_host = getattr(args, "model_host", None)
         ctx.model_port = getattr(args, "model_port", None)
+        ctx.thinking = getattr(args, "thinking", None)
         return ctx
 
 
