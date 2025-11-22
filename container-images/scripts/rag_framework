@@ -252,29 +252,30 @@ class OpenAICompatibleRagService:
         rag_context = await self._perform_rag_lookup(latest_message.content)
         conversation_history = self._extract_conversation_context(messages[:-1])
 
-        # Enhanced system prompt with RAG context
-        system_prompt = (
-            textwrap.dedent(
-                """
-            You are an expert software architect assistant.
-            Use the provided context and conversation history to answer questions accurately and concisely.
-            If the answer is not in the context, respond with "I don't know" - do not fabricate details.
-
-            ### Conversation History:
-            {0}
-
-            ### Retrieved Context:
-            {1}
-
-            ### Current Question:
-            {2}
-
-            Provide a helpful and accurate response based on the context above.
+        # Enhanced system prompt with strict RAG enforcement
+        # This ensures RAG behaves as a pure document retrieval system
+        system_prompt = textwrap.dedent(
             """
-            )
-            .strip()
-            .format(conversation_history, rag_context, latest_message.content)
-        )
+        You are a strict document-based assistant. You MUST ONLY answer questions using information from the provided context.
+        
+        **CRITICAL RULES:**
+        - If the answer is NOT EXPLICITLY in the context below, you MUST respond with EXACTLY: "I don't know."
+        - Do NOT use your general knowledge
+        - Do NOT make assumptions or inferences beyond what's stated
+        - Do NOT provide answers from your training data
+        
+        ### Conversation History:
+        {0}
+
+        ### Retrieved Context:
+        {1}
+
+        ### Current Question:
+        {2}
+        
+        Answer ONLY from the context above, or say "I don't know."
+        """
+        ).strip().format(conversation_history, rag_context, latest_message.content)
 
         return [{"role": "user", "content": system_prompt}]
 
